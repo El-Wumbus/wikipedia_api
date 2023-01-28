@@ -122,6 +122,7 @@ impl Page {
                 Some(x) => x.to_string(),
                 None => return Err(WikiError::PageNotFoundError(search_term.to_string())),
             };
+
             page = Self::new(t, u);
         } else {
             return Err(WikiError::JsonParseError);
@@ -132,7 +133,7 @@ impl Page {
     pub async fn get_summary(&self) -> Result<String, WikiError> {
         let request_url =
         format!(
-            "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles={}&formatversion=2&exintro=1&explaintext=1",
+            "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles={}&formatversion=2&exchars=1000&explaintext=1&redirects=1",
             self.title
         );
 
@@ -158,7 +159,7 @@ impl Page {
         }
         .extract
         .clone();
-
+        
         Ok(summary_text)
     }
 }
