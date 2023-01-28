@@ -77,6 +77,16 @@ impl Page {
         Self { title, url }
     }
 
+    pub fn get_title(&self) -> String
+    {
+        self.title.clone()
+    }
+
+    pub fn get_url(&self) -> String
+    {
+        self.url.clone()
+    }
+
     /// Search for a page on Wikipedia and return a `Page`
     pub async fn search(search_term: &str) -> Result<Self, WikiError> {
         type SearchResult = (String, Vec<String>, Vec<String>, Vec<String>);
