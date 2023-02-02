@@ -2,12 +2,12 @@
 
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use structstruck::strike;
+use std::rc::Rc;
 
 #[derive(Clone, PartialEq, PartialOrd, Ord, Eq, Debug)]
-pub enum WikiError {
+pub enum WikiError<'a> {
     /// The searched page wasn't found. The search term is stored in `String`
-    PageNotFoundError(String),
+    PageNotFoundError(&'a str),
 
     /// Making a wikipedia request failed
     PageRequestError,
@@ -19,7 +19,7 @@ pub enum WikiError {
     ResponseError,
 }
 
-impl std::fmt::Display for WikiError {
+impl std::fmt::Display for WikiError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let m = match self {
             Self::PageNotFoundError(e) => format!("PageNotFound: Couldn't find '{e}'."),
@@ -44,45 +44,50 @@ impl std::fmt::Display for WikiError {
     }
 }
 
-strike! {
-    #[strikethrough[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]]
-    #[strikethrough[serde(rename_all = "camelCase")]]
-    pub struct SummaryResponse {
-        pub batchcomplete: bool,
-        pub query: pub struct Query {
-            pub pages: Vec<pub struct RPage {
-                pub pageid: i64,
-                pub ns: i64,
-                pub title: String,
-                pub extract: String,
-            }
-            >,
-        },
-    }
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RPage {
+    pub pageid: i64,
+    pub ns: i64,
+    pub title: String,
+    pub extract: String,
 }
 
-#[derive(Default, Clone, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Query {
+    pub pages: Vec<RPage>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SummaryResponse {
+    pub batchcomplete: bool,
+    pub query: Query,
+}
+
+#[derive(Clone, PartialEq, PartialOrd, Ord, Eq, Debug)]
 /// The result of a search operation.
 pub struct Page {
     /// Title of the page
-    title: String,
+    title: Rc<str>,
 
     /// The URL of the page
-    url: String,
+    url: Rc<str>,
 }
 
 impl Page {
     /// Create a new `Page`
     pub fn new(title: String, url: String) -> Self {
-        Self { title, url }
+        Self { title: Rc::from(title), url: Rc::from(url) }
     }
 
-    pub fn get_title(&self) -> String
+    pub fn get_title(&self) -> Rc<str>
     {
         self.title.clone()
     }
 
-    pub fn get_url(&self) -> String
+    pub fn get_url(&self) -> Rc<str>
     {
         self.url.clone()
     }
@@ -92,7 +97,7 @@ impl Page {
         type SearchResult = (String, Vec<String>, Vec<String>, Vec<String>);
 
         // Replace spaces with %20 for the url
-        let title = search_term.replace(' ', "%20").to_string();
+        let title = search_term.replace(' ', "%20");
 
         let request_url =
         format!(
@@ -115,12 +120,12 @@ impl Page {
         } {
             let t = match resp.1.get(0) {
                 Some(x) => x.to_string(),
-                None => return Err(WikiError::PageNotFoundError(search_term.to_string())),
+                None => return Err(WikiError::PageNotFoundError(search_term)),
             };
 
             let u = match resp.3.get(0) {
                 Some(x) => x.to_string(),
-                None => return Err(WikiError::PageNotFoundError(search_term.to_string())),
+                None => return Err(WikiError::PageNotFoundError(search_term)),
             };
 
             page = Self::new(t, u);
@@ -158,7 +163,7 @@ impl Page {
             None => return Err(WikiError::ResponseError),
         }
         .extract
-        .clone();
+        .to_owned();
         
         Ok(summary_text)
     }
