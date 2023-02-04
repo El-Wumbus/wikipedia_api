@@ -86,7 +86,7 @@ impl Page {
     }
 
     /// Search for a page on Wikipedia and return a `Page`
-    pub async fn search(search_term: &str) -> Result<Self, WikiError> {
+    pub fn search(search_term: &str) -> Result<Self, WikiError> {
         type SearchResult = (String, Vec<String>, Vec<String>, Vec<String>);
 
         // Replace spaces with %20 for the url
@@ -101,7 +101,7 @@ impl Page {
 
         // Make the API call, parse the json to a `Page`.
         if let Ok(resp) = {
-            match reqwest::get(&request_url).await {
+            match reqwest::blocking::get(&request_url) {
                 Ok(x) => {
                     info!("Requested '{}'", request_url);
                     x
@@ -109,7 +109,6 @@ impl Page {
                 Err(_) => return Err(WikiError::PageRequestError),
             }
             .json::<SearchResult>()
-            .await
         } {
             let t = match resp.1.get(0) {
                 Some(x) => x.to_string(),
@@ -128,7 +127,7 @@ impl Page {
         Ok(page)
     }
 
-    pub async fn get_summary(self) -> Result<String, WikiError> {
+    pub fn get_summary(self) -> Result<String, WikiError> {
         let request_url =
         format!(
             "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles={}&formatversion=2&exchars=1000&explaintext=1&redirects=1",
@@ -137,7 +136,7 @@ impl Page {
 
         // Make the API call, parse the json to a `Page`.
         let resp = match {
-            match reqwest::get(&request_url).await {
+            match reqwest::blocking::get(&request_url) {
                 Ok(x) => {
                     info!("Requested '{}'", request_url);
                     x
@@ -145,7 +144,6 @@ impl Page {
                 Err(_) => return Err(WikiError::PageRequestError),
             }
             .json::<SummaryResponse>()
-            .await
         } {
             Ok(x) => x,
             Err(_) => return Err(WikiError::JsonParseError),
@@ -167,42 +165,39 @@ impl Page {
 pub mod tests {
     use super::{Page, WikiError};
 
-    #[tokio::test]
-    async fn test_search_page() {
+    #[test]
+    fn test_search_page() {
         let expected_page = Page::new(
             "Albert Einstein".to_string(),
             "https://en.wikipedia.org/wiki/Albert_Einstein".to_string(),
         );
-        let page = Page::search("Albert Einstein").await.unwrap();
+        let page = Page::search("Albert Einstein").unwrap();
         assert_eq!(page, expected_page);
     }
 
-    #[tokio::test]
-    async fn test_search_page_misspelled() {
+    #[test]
+    fn test_search_page_misspelled() {
         let expected_page = Page::new(
             "Programming language".to_string(),
             "https://en.wikipedia.org/wiki/Programming_language".to_string(),
         );
-        let page = Page::search("progrmming lang").await.unwrap();
+        let page = Page::search("progrmming lang").unwrap();
         assert_eq!(page, expected_page);
     }
 
-    #[tokio::test]
-    async fn test_search_page_not_found() {
-        let page = Page::search("this page does not exist")
-            .await
-            .err()
-            .unwrap();
+    #[test]
+    fn test_search_page_not_found() {
+        let page = Page::search("this page does not exist").err().unwrap();
         assert_eq!(
             page,
             WikiError::PageNotFoundError("this page does not exist".to_string())
         );
     }
 
-    #[tokio::test]
-    async fn test_get_page_summary() {
-        let page = Page::search("Albert Einstein").await.unwrap();
-        let r = page.get_summary().await;
+    #[test]
+    fn test_get_page_summary() {
+        let page = Page::search("Albert Einstein").unwrap();
+        let r = page.get_summary();
         assert!(r.is_ok());
     }
 }
