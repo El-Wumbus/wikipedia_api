@@ -70,10 +70,10 @@ pub struct SummaryResponse {
 /// The result of a search operation.
 pub struct Page {
     /// Title of the page
-    title: Rc<str>,
+    pub title: Rc<str>,
 
     /// The URL of the page
-    url: Rc<str>,
+    pub url: Rc<str>,
 }
 
 impl Page {
@@ -83,14 +83,6 @@ impl Page {
             title: Rc::from(title),
             url: Rc::from(url),
         }
-    }
-
-    pub fn get_title(&self) -> Rc<str> {
-        self.title.clone()
-    }
-
-    pub fn get_url(&self) -> Rc<str> {
-        self.url.clone()
     }
 
     /// Search for a page on Wikipedia and return a `Page`
@@ -136,7 +128,7 @@ impl Page {
         Ok(page)
     }
 
-    pub async fn get_summary(&self) -> Result<String, WikiError> {
+    pub async fn get_summary(self) -> Result<String, WikiError> {
         let request_url =
         format!(
             "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles={}&formatversion=2&exchars=1000&explaintext=1&redirects=1",
