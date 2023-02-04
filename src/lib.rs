@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 
 #[derive(Clone, PartialEq, PartialOrd, Ord, Eq, Debug)]
-pub enum WikiError<'a> {
+pub enum WikiError {
     /// The searched page wasn't found. The search term is stored in `String`
-    PageNotFoundError(&'a str),
+    PageNotFoundError(String),
 
     /// Making a wikipedia request failed
     PageRequestError,
@@ -19,7 +19,7 @@ pub enum WikiError<'a> {
     ResponseError,
 }
 
-impl std::fmt::Display for WikiError<'_> {
+impl std::fmt::Display for WikiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let m = match self {
             Self::PageNotFoundError(e) => format!("PageNotFound: Couldn't find '{e}'."),
@@ -79,16 +79,17 @@ pub struct Page {
 impl Page {
     /// Create a new `Page`
     pub fn new(title: String, url: String) -> Self {
-        Self { title: Rc::from(title), url: Rc::from(url) }
+        Self {
+            title: Rc::from(title),
+            url: Rc::from(url),
+        }
     }
 
-    pub fn get_title(&self) -> Rc<str>
-    {
+    pub fn get_title(&self) -> Rc<str> {
         self.title.clone()
     }
 
-    pub fn get_url(&self) -> Rc<str>
-    {
+    pub fn get_url(&self) -> Rc<str> {
         self.url.clone()
     }
 
@@ -120,12 +121,12 @@ impl Page {
         } {
             let t = match resp.1.get(0) {
                 Some(x) => x.to_string(),
-                None => return Err(WikiError::PageNotFoundError(search_term)),
+                None => return Err(WikiError::PageNotFoundError(search_term.to_string())),
             };
 
             let u = match resp.3.get(0) {
                 Some(x) => x.to_string(),
-                None => return Err(WikiError::PageNotFoundError(search_term)),
+                None => return Err(WikiError::PageNotFoundError(search_term.to_string())),
             };
 
             page = Self::new(t, u);
@@ -164,7 +165,7 @@ impl Page {
         }
         .extract
         .to_owned();
-        
+
         Ok(summary_text)
     }
 }
