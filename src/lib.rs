@@ -1,6 +1,6 @@
 //! Wikipedia api crate
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use log::{error, info};
 use serde::{Deserialize, Serialize};
@@ -78,10 +78,10 @@ pub struct SummaryResponse
 pub struct Page
 {
     /// Title of the page
-    pub title: Rc<str>,
+    pub title: Arc<str>,
 
     /// The URL of the page
-    pub url: Rc<str>,
+    pub url: Arc<str>,
 }
 
 impl Page
@@ -90,8 +90,8 @@ impl Page
     pub fn new(title: String, url: String) -> Self
     {
         Self {
-            title: Rc::from(title),
-            url:   Rc::from(url),
+            title: Arc::from(title),
+            url:   Arc::from(url),
         }
     }
 

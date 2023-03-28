@@ -1,13 +1,12 @@
-use std::rc::Rc;
-
 use wikipedia_api::*;
 
 #[tokio::main]
-async fn main() -> Result<(), WikiError> {
+async fn main() -> Result<(), WikiError>
+{
     // Search for a page on wikipedia
     let page = Page::search("USA").await?;
 
-    let title = Rc::clone(&page.title);
+    let title = &page.title.clone();
 
     // Get it's summary
     let page_summary = page.get_summary().await?;
