@@ -6,7 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.11", features = ["json", "blocking"] }
+reqwest = { version = "0.11", features = ["json"] }
 serenity = { default-features = false, features = ["client", "gateway", "model", "rustls_backend"], version = "0.11"}
 serde = "1.0"
 log = "0.4.6"
+tokio = { version = "1.27.0", features = ["rt-multi-thread"] }
+
+[profile.release]
+strip = "symbols"
+lto = true

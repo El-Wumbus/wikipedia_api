@@ -1,11 +1,13 @@
 //! Wikipedia api crate
 
-use log::{error, info};
-use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 
+use log::{error, info};
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, PartialEq, PartialOrd, Ord, Eq, Debug)]
-pub enum WikiError {
+pub enum WikiError
+{
     /// The searched page wasn't found. The search term is stored in `String`
     PageNotFoundError(String),
 
@@ -19,8 +21,10 @@ pub enum WikiError {
     ResponseError,
 }
 
-impl std::fmt::Display for WikiError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl std::fmt::Display for WikiError
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
         let m = match self {
             Self::PageNotFoundError(e) => format!("PageNotFound: Couldn't find '{e}'."),
             Self::PageRequestError => {
@@ -46,29 +50,33 @@ impl std::fmt::Display for WikiError {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RPage {
-    pub pageid: i64,
-    pub ns: i64,
-    pub title: String,
+pub struct RPage
+{
+    pub pageid:  i64,
+    pub ns:      i64,
+    pub title:   String,
     pub extract: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Query {
+pub struct Query
+{
     pub pages: Vec<RPage>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SummaryResponse {
+pub struct SummaryResponse
+{
     pub batchcomplete: bool,
-    pub query: Query,
+    pub query:         Query,
 }
 
 #[derive(Clone, PartialEq, PartialOrd, Ord, Eq, Debug)]
 /// The result of a search operation.
-pub struct Page {
+pub struct Page
+{
     /// Title of the page
     pub title: Rc<str>,
 
@@ -76,24 +84,26 @@ pub struct Page {
     pub url: Rc<str>,
 }
 
-impl Page {
+impl Page
+{
     /// Create a new `Page`
-    pub fn new(title: String, url: String) -> Self {
+    pub fn new(title: String, url: String) -> Self
+    {
         Self {
             title: Rc::from(title),
-            url: Rc::from(url),
+            url:   Rc::from(url),
         }
     }
 
     /// Search for a page on Wikipedia and return a `Page`
-    pub fn search(search_term: &str) -> Result<Self, WikiError> {
+    pub async fn search(search_term: &str) -> Result<Self, WikiError>
+    {
         type SearchResult = (String, Vec<String>, Vec<String>, Vec<String>);
 
         // Replace spaces with %20 for the url
         let title = search_term.replace(' ', "%20");
 
-        let request_url =
-        format!(
+        let request_url = format!(
             "https://en.wikipedia.org/w/api.php?action=opensearch&search={}&limit=1&namespace=0&format=json",
             title.trim()
         );
@@ -101,7 +111,7 @@ impl Page {
 
         // Make the API call, parse the json to a `Page`.
         if let Ok(resp) = {
-            match reqwest::blocking::get(&request_url) {
+            match reqwest::get(&request_url).await {
                 Ok(x) => {
                     info!("Requested '{}'", request_url);
                     x
@@ -109,6 +119,7 @@ impl Page {
                 Err(_) => return Err(WikiError::PageRequestError),
             }
             .json::<SearchResult>()
+            .await
         } {
             let t = match resp.1.get(0) {
                 Some(x) => x.to_string(),
@@ -121,13 +132,15 @@ impl Page {
             };
 
             page = Self::new(t, u);
-        } else {
+        }
+        else {
             return Err(WikiError::JsonParseError);
         }
         Ok(page)
     }
 
-    pub fn get_summary(self) -> Result<String, WikiError> {
+    pub async fn get_summary(self) -> Result<String, WikiError>
+    {
         let request_url =
         format!(
             "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&titles={}&formatversion=2&exchars=1000&explaintext=1&redirects=1",
@@ -136,7 +149,7 @@ impl Page {
 
         // Make the API call, parse the json to a `Page`.
         let resp = match {
-            match reqwest::blocking::get(&request_url) {
+            match reqwest::get(&request_url).await {
                 Ok(x) => {
                     info!("Requested '{}'", request_url);
                     x
@@ -144,6 +157,7 @@ impl Page {
                 Err(_) => return Err(WikiError::PageRequestError),
             }
             .json::<SummaryResponse>()
+            .await
         } {
             Ok(x) => x,
             Err(_) => return Err(WikiError::JsonParseError),
@@ -162,42 +176,47 @@ impl Page {
 
 #[cfg(test)]
 
-pub mod tests {
+pub mod tests
+{
     use super::{Page, WikiError};
 
-    #[test]
-    fn test_search_page() {
+    #[tokio::test]
+    async fn test_search_page()
+    {
         let expected_page = Page::new(
             "Albert Einstein".to_string(),
             "https://en.wikipedia.org/wiki/Albert_Einstein".to_string(),
         );
-        let page = Page::search("Albert Einstein").unwrap();
+        let page = Page::search("Albert Einstein").await.unwrap();
         assert_eq!(page, expected_page);
     }
 
-    #[test]
-    fn test_search_page_misspelled() {
+    #[tokio::test]
+    async fn test_search_page_misspelled()
+    {
         let expected_page = Page::new(
             "Programming language".to_string(),
             "https://en.wikipedia.org/wiki/Programming_language".to_string(),
         );
-        let page = Page::search("progrmming lang").unwrap();
+        let page = Page::search("progrmming lang").await.unwrap();
         assert_eq!(page, expected_page);
     }
 
-    #[test]
-    fn test_search_page_not_found() {
-        let page = Page::search("this page does not exist").err().unwrap();
+    #[tokio::test]
+    async fn test_search_page_not_found()
+    {
+        let page = Page::search("this page does not exist").await.err().unwrap();
         assert_eq!(
             page,
             WikiError::PageNotFoundError("this page does not exist".to_string())
         );
     }
 
-    #[test]
-    fn test_get_page_summary() {
-        let page = Page::search("Albert Einstein").unwrap();
-        let r = page.get_summary();
+    #[tokio::test]
+    async fn test_get_page_summary()
+    {
+        let page = Page::search("Albert Einstein").await.unwrap();
+        let r = page.get_summary().await;
         assert!(r.is_ok());
     }
 }
